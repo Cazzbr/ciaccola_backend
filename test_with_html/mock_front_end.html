@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Test - Test2 & Test3</title>
+  <script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      height: 100vh; 
+      display: flex; 
+      flex-direction: column; 
+    }
+    
+    .header { 
+      background: #2563eb; 
+      color: white; 
+      padding: 1rem; 
+      text-align: center; 
+      font-weight: bold;
+    }
+    
+    .login-form, .chat-container { 
+      max-width: 600px; 
+      margin: 0 auto; 
+      padding: 2rem; 
+      flex: 1; 
+    }
+    
+    .login-form { background: #f8fafc; }
+    .login-form input { 
+      width: 100%; 
+      padding: 0.75rem; 
+      margin: 0.5rem 0; 
+      border: 1px solid #d1d5db; 
+      border-radius: 0.5rem; 
+    }
+    
+    .chat-container { display: none; }
+    .chat-messages {
+      height: 400px; 
+      overflow-y: auto; 
+      border: 1px solid #e5e7eb; 
+      padding: 1rem; 
+      background: white; 
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .message { 
+      margin: 0.5rem 0; 
+      padding: 0.75rem; 
+      border-radius: 0.5rem; 
+    }
+    .message.sent { background: #dbeafe; margin-left: 20%; text-align: right; }
+    .message.received { background: #f0fdf4; margin-right: 20%; }
+    
+    .message-inputs {
+      display: flex; 
+      gap: 0.5rem;
+    }
+    .message-inputs input { flex: 1; }
+    button { 
+      padding: 0.75rem 1.5rem; 
+      background: #10b981; 
+      color: white; 
+      border: none; 
+      border-radius: 0.5rem; 
+      cursor: pointer; 
+    }
+    button:hover { background: #059669; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    
+    .status { padding: 0.5rem; border-radius: 0.25rem; margin: 0.5rem 0; }
+    .status.online { background: #dcfce7; color: #166534; }
+    .status.offline { background: #fee2e2; color: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="header" id="header">Chat Test Client</div>
+  
+  <!-- Login Form -->
+  <div class="login-form" id="loginForm">
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Username (test2/test3)" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <div id="loginStatus"></div>
+  </div>
+  
+  <!-- Chat Interface -->
+  <div class="chat-container" id="chatContainer">
+    <div style="padding: 0 2rem 1rem;">
+      <strong>You: <span id="currentUser"></span></strong>
+      <span id="connectionStatus" class="status offline">Offline</span>
+    </div>
+    
+    <div class="chat-messages" id="messages"></div>
+    
+    <div class="message-inputs">
+      <select id="messageType">
+        <option value="text">Text</option>
+        <option value="audio">Audio (Admin)</option>
+      </select>
+      <input type="text" id="messageInput" placeholder="Type message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+    
+    <div style="margin-top: 1rem;">
+      <button onclick="addContact()" id="addContactBtn" style="background: #3b82f6;">Add Contact</button>
+      <button onclick="acceptContact()" id="acceptContactBtn" style="background: #10b981; display: none;">Accept Contact</button>
+      <button onclick="logout()" style="background: #ef4444;">Logout</button>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const SERVER_URL = 'http://localhost:3000';
+    let socket = null;
+    let token = null;
+    let currentUser = '';
+    let contacts = [];
+    
+    // Predefined test users
+    const testUsers = {
+      alice: { username: 'test2', password: '123456', other: 'test3' },
+      bob: { username: 'test3', password: '123456', other: 'test2' }
+    };
+
+    async function login() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      
+      if (!username || !password) {
+        showStatus('Please enter username and password', 'error');
+        return;
+      }
+
+      try {
+        showStatus('Logging in...', 'info');
+        
+        // Login via REST API
+        const response = await fetch(`${SERVER_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) throw new Error(data.error);
+        
+        token = data.token;
+        currentUser = data.user.username;
+        
+        // Connect Socket.IO
+        socket = io(SERVER_URL, {
+          auth: { token }
+        });
+        
+        await initSocket();
+        showChat();
+        loadContacts();
+        
+        showStatus(`Welcome ${currentUser}!`, 'success');
+      } catch (err) {
+        showStatus('Login failed: ' + err.message, 'error');
+      }
+    }
+    
+    async function initSocket() {
+      socket.on('connect', () => {
+        document.getElementById('connectionStatus').textContent = 'Online';
+        document.getElementById('connectionStatus').className = 'status online';
+        // Join the chat room
+        socket.emit('join-room', { room: 'chat123' });
+      });
+      
+      socket.on('user-joined', (data) => {
+        addSystemMessage(`${data.username} joined`);
+      });
+      
+      socket.on('new-message-metadata', (data) => {
+        addMessage(data.sender.username, data.type, data.timestamp);
+      });
+      
+      socket.on('error', (data) => {
+        showStatus('Error: ' + data.message, 'error');
+      });
+    }
+    
+    async function loadContacts() {
+      const response = await fetch(`${SERVER_URL}/api/users/contacts`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      contacts = data;
+      
+      const otherUser = testUsers[currentUser]?.other;
+      const addBtn = document.getElementById('addContactBtn');
+      const acceptBtn = document.getElementById('acceptContactBtn');
+      
+      if (otherUser) {
+        const contact = contacts.find(c => c.contact_username === otherUser);
+        if (!contact) {
+          addBtn.style.display = 'inline-block';
+          acceptBtn.style.display = 'none';
+        } else if (contact.status === 'pending') {
+          addBtn.style.display = 'none';
+          acceptBtn.style.display = 'inline-block';
+        } else {
+          addBtn.style.display = 'none';
+          acceptBtn.style.display = 'none';
+        }
+      }
+    }
+    
+    async function addContact() {
+      const otherUser = testUsers[currentUser]?.other;
+      if (!otherUser) return;
+      
+      try {
+        const response = await fetch(`${SERVER_URL}/api/users/contacts`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ contact_username: otherUser })
+        });
+        
+        if (response.ok) {
+          showStatus(`${otherUser} added! Ask them to accept.`, 'success');
+          loadContacts();
+        }
+      } catch (err) {
+        showStatus('Failed to add contact', 'error');
+      }
+    }
+    
+    async function acceptContact() {
+      const otherUser = testUsers[currentUser]?.other;
+      if (!otherUser) return;
+      
+      try {
+        const response = await fetch(`${SERVER_URL}/api/users/profile`, {
+          method: 'PUT',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            contacts: [{ contact_username: otherUser, status: 'accepted' }]
+          })
+        });
+        
+        if (response.ok) {
+          showStatus(`Accepted ${otherUser}!`, 'success');
+          loadContacts();
+        }
+      } catch (err) {
+        showStatus('Failed to accept contact', 'error');
+      }
+    }
+    
+    async function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const messageType = document.getElementById('messageType').value;
+      const text = input.value.trim();
+      
+      if (!text) return;
+      
+      const otherUser = testUsers[currentUser]?.other;
+      if (!otherUser) {
+        showStatus('No contact available', 'error');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${SERVER_URL}/api/messages/chat123`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            recipient_username: otherUser,
+            type: messageType,
+            chatId: 'chat123'
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          addMessage(currentUser, messageType, new Date().toISOString());
+          input.value = '';
+        } else {
+          const err = await response.json();
+          showStatus('Send failed: ' + err.error, 'error');
+        }
+      } catch (err) {
+        showStatus('Network error', 'error');
+      }
+    }
+    
+    function addMessage(sender, type, timestamp) {
+      const messages = document.getElementById('messages');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = sender === currentUser ? 'message sent' : 'message received';
+      
+      const time = new Date(timestamp).toLocaleTimeString();
+      messageDiv.innerHTML = `
+        <div><strong>${sender}</strong> <span style="color: #6b7280; font-size: 0.8em;">${time}</span></div>
+        <div>${type === 'audio' ? '[🎤 Audio]' : 'Hello! This is a test message'}</div>
+      `;
+      
+      messages.appendChild(messageDiv);
+      messages.scrollTop = messages.scrollHeight;
+    }
+    
+    function addSystemMessage(text) {
+      const messages = document.getElementById('messages');
+      const msg = document.createElement('div');
+      msg.style.cssText = 'text-align: center; color: #6b7280; font-style: italic;';
+      msg.textContent = text;
+      messages.appendChild(msg);
+      messages.scrollTop = messages.scrollHeight;
+    }
+    
+    function showChat() {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('chatContainer').style.display = 'block';
+      document.getElementById('currentUser').textContent = currentUser;
+      document.getElementById('header').textContent = `Chat Test - ${currentUser}`;
+    }
+    
+    function showStatus(message, type) {
+      const status = document.getElementById('loginStatus');
+      status.textContent = message;
+      status.className = type;
+      setTimeout(() => status.textContent = '', 5000);
+    }
+    
+    function logout() {
+      socket?.disconnect();
+      token = null;
+      document.getElementById('chatContainer').style.display = 'none';
+      document.getElementById('loginForm').style.display = 'block';
+      document.getElementById('messages').innerHTML = '';
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+    }
+    
+    // Enter to send
+    document.addEventListener('keypress', (e) => {
+      if (e.target.id === 'messageInput' && e.key === 'Enter') {
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>
