@@ -14,8 +14,8 @@ export const getProfile = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { email, contacts } = req.body;
-    
+    const { email, password, role } = req.body;
+
     if (email) {
       const existingEmail = await User.findOne({ 
         email, 
@@ -26,36 +26,48 @@ export const updateProfile = async (req, res) => {
       }
     }
 
-    const updates = { ...req.body };
-    if (email !== undefined) updates.email = email || null;  // Allow null
+    if (password !== undefined && password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
 
-    // Handle contact acceptance: update sender's profile too
-    if (contacts && Array.isArray(contacts)) {
-      for (const contact of contacts) {
-        if (contact.status === 'accepted') {
-          const sender = await User.findOne({ username: contact.contact_username });
-          if (sender) {
-            const existingSenderContact = sender.contacts.find(
-              c => c.contact_username === req.user.username
-            );
-            if (existingSenderContact && existingSenderContact.status === 'pending') {
-              existingSenderContact.status = 'accepted';
-              await sender.save();
-            }
-          }
-        }
+    if (role !== undefined) {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Not authorized to change role' });
+      }
+      const validRoles = ['user', 'admin'];
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({ error: 'Invalid role' });
       }
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.user._id, 
-      updates, 
-      { returnDocument: 'after', runValidators: true }
-    ).select('-password');
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (email !== undefined) {
+      user.email = email || null;
+    }
+    if (password !== undefined) {
+      user.password = password;
+    }
+    if (role !== undefined) {
+      user.role = role;
+    }
+
+    const updates = { ...req.body };
+    delete updates.email;
+    delete updates.contacts;
+    delete updates.password;
+    delete updates.role;
+    user.set(updates);
+
+    await user.save();
+    const updatedUser = await User.findById(req.user._id).select('-password');
 
     res.json({
-      ...user._doc,
-      emailRecovery: user.hasEmailRecovery()
+      ...updatedUser._doc,
+      emailRecovery: updatedUser.hasEmailRecovery()
     });
   } catch (err) {
     res.status(500).json({ error: 'Profile update failed' });
@@ -103,6 +115,105 @@ export const addContact = async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+export const acceptContactInvite = async (req, res) => {
+  try {
+    const { contact_username } = req.body;
+    if (!contact_username) {
+      return res.status(400).json({ error: 'contact_username is required' });
+    }
+
+    const sender = await User.findOne({ username: contact_username });
+    if (!sender) {
+      return res.status(404).json({ error: 'Contact sender not found' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const existingSenderContact = sender.contacts.find(
+      c => c.contact_username === user.username && c.status === 'pending'
+    );
+    if (!existingSenderContact) {
+      return res.status(400).json({ error: 'No pending invite found for sender' });
+    }
+
+    existingSenderContact.status = 'accepted';
+    user.contacts.push({
+      contact_username,
+      status: 'accepted'
+    });
+
+    await sender.save();
+    await user.save();
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const toggleContactStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const contact = user.contacts.id(id);
+    if (!contact) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+
+    if (contact.status === 'accepted') {
+      contact.status = 'blocked';
+    } else if (contact.status === 'blocked') {
+      contact.status = 'accepted';
+    } else {
+      return res.status(400).json({ error: 'Status can only be toggled for accepted or blocked contacts' });
+    }
+
+    await user.save();
+    res.json({ success: true, contact });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const searchUsers = async (req, res) => {
+  try {
+    const { term } = req.params;
+    const { limit } = req.query;
+    if (!term || typeof term !== 'string') {
+      return res.status(400).json({ error: 'Search term is required' });
+    }
+
+    const regex = new RegExp(term, 'i');
+    const query = {
+      $or: [
+        { username: regex },
+        { email: regex }
+      ]
+    };
+
+    let usersQuery = User.find(query).select('username role last_seen createdAt');
+    if (limit !== undefined) {
+      const parsedLimit = parseInt(limit, 10);
+      if (Number.isNaN(parsedLimit) || parsedLimit < 1) {
+        return res.status(400).json({ error: 'Limit must be a positive integer' });
+      }
+      usersQuery = usersQuery.limit(parsedLimit);
+    }
+
+    const users = await usersQuery;
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: 'User search failed' });
   }
 };
 

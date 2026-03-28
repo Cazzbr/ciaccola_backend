@@ -63,3 +63,27 @@ export const createMessage = async (req, res) => {
     res.status(500).json({ error: 'Failed to send message' });
   }
 };
+
+export const deleteMessage = async (req, res) => {
+  try {
+    const { chatId, id } = req.params;
+
+    const message = await Message.findOne({ id, chat_id: chatId, deleted: { $ne: true } });
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    const isSender = message.sender_id.equals(req.user._id);
+    const isRecipient = message.recipient_id.equals(req.user._id);
+    if (!isSender && !isRecipient) {
+      return res.status(403).json({ error: 'Not authorized to delete this message' });
+    }
+
+    message.deleted = true;
+    await message.save();
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete message' });
+  }
+};

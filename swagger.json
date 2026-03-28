@@ -1,14 +1,28 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "My API",
-    "description": "JWT protected API docs",
+    "title": "Ciaccola Backend API",
+    "description": "JWT protected backend API for user management, contacts, and messaging.",
     "version": "1.0.0"
   },
   "servers": [
     {
       "url": "http://localhost:3000",
       "description": "Development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints"
+    },
+    {
+      "name": "Users",
+      "description": "User profile and contact management"
+    },
+    {
+      "name": "Messages",
+      "description": "Message creation and deletion"
     }
   ],
   "paths": {
@@ -45,7 +59,10 @@
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     },
     "/api/auth/login": {
@@ -78,7 +95,10 @@
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     },
     "/api/auth/forgot-password": {
@@ -111,7 +131,10 @@
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     },
     "/api/users/profile": {
@@ -127,7 +150,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Users"
+        ]
       },
       "put": {
         "description": "",
@@ -140,6 +166,12 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
           },
           "500": {
             "description": "Internal Server Error"
@@ -154,14 +186,20 @@
                   "email": {
                     "example": "any"
                   },
-                  "contacts": {
+                  "password": {
+                    "example": "any"
+                  },
+                  "role": {
                     "example": "any"
                   }
                 }
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Users"
+        ]
       },
       "delete": {
         "description": "",
@@ -178,7 +216,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Users"
+        ]
       }
     },
     "/api/users/contacts": {
@@ -214,7 +255,47 @@
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Users"
+        ]
+      },
+      "put": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contact_username": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Users"
+        ]
       },
       "get": {
         "description": "",
@@ -225,7 +306,84 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/users/contacts/{id}": {
+      "patch": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/users/search/{term}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "tags": [
+          "Users"
+        ]
       }
     },
     "/api/messages/{chatId}": {
@@ -265,7 +423,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Messages"
+        ]
       },
       "post": {
         "description": "",
@@ -315,7 +476,53 @@
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Messages"
+        ]
+      }
+    },
+    "/api/messages/{chatId}/{id}": {
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "tags": [
+          "Messages"
+        ]
       }
     }
   },
