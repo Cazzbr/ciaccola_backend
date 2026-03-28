@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { auth } from '../middleware/auth.js';
+import { premiumAudio } from '../middleware/premiumAudio.js';
 import { getMessages, createMessage, deleteMessage } from '../controllers/messageController.js';
 
 const router = Router();
@@ -28,7 +29,13 @@ router.get('/:chatId', getMessages);
     }
   }
 */
-router.post('/:chatId', createMessage);
+router.post('/:chatId', premiumAudio, createMessage);
+/*
+  #swagger.tags = ['Messages']
+  #swagger.description = 'Delete a message by chat and message id. This marks the message as deleted.'
+  #swagger.parameters['chatId'] = { description: 'Chat room ID', in: 'path', required: true, type: 'string' }
+  #swagger.parameters['id'] = { description: 'Message id', in: 'path', required: true, type: 'string' }
+*/
 router.delete('/:chatId/:id', deleteMessage);
 
 export default router;

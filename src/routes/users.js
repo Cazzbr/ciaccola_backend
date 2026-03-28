@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { auth } from '../middleware/auth.js';
-import { getProfile, updateProfile, deleteProfile, addContact, acceptContactInvite, toggleContactStatus, searchUsers, getContacts } from '../controllers/userController.js';
+import { getProfile, updateProfile, deleteProfile, addContact, acceptContactInvite, toggleContactStatus, searchUsers } from '../controllers/userController.js';
 
 const router = Router();
 router.use(auth);
@@ -55,11 +55,6 @@ router.put('/contacts', acceptContactInvite);
   #swagger.parameters['id'] = { description: 'Contact subdocument ID', in: 'path', required: true, type: 'string' }
 */
 router.patch('/contacts/:id', toggleContactStatus);
-/*
-  #swagger.tags = ['Users']
-  #swagger.description = 'List all current contacts for the authenticated user.'
-*/
-router.get('/contacts', getContacts);
 /*
   #swagger.tags = ['Users']
   #swagger.description = 'Search users by username or email. Optional limit query parameter controls the maximum number of results.'

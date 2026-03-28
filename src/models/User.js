@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true, minlength: 6 },
   pubkey: String,
   fcm_token: String,
-  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  role: { type: String, enum: ['standard', 'premium'], default: 'standard' },
   last_seen: { type: Date, default: Date.now },
   contacts: [{
     contact_username: String,

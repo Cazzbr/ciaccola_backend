@@ -22,8 +22,8 @@ connectDB();
 const app = express();
 const uiOptions = {
   swaggerOptions: {
-    persistAuthorization: true,  // Keeps token across refreshes
-    docExpansion: 'none',        // Optional: Collapse sections
+    persistAuthorization: true, 
+    docExpansion: 'none', 
   }
 };
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, uiOptions));
@@ -32,24 +32,19 @@ const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-// Attach io to app for use in controllers
 app.set('io', io);
 
-// Middleware
+// Middlewares for safety and CORS
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Make io available
 app.set('io', io);
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 
-
-// Socket.IO
 socketController(io);
 
 const PORT = process.env.PORT || 3000;

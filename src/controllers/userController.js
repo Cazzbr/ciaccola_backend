@@ -30,14 +30,9 @@ export const updateProfile = async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    if (role !== undefined) {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Not authorized to change role' });
-      }
-      const validRoles = ['user', 'admin'];
-      if (!validRoles.includes(role)) {
-        return res.status(400).json({ error: 'Invalid role' });
-      }
+    const validRoles = ['standard', 'premium'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
     }
 
     const user = await User.findById(req.user._id);
@@ -215,8 +210,4 @@ export const searchUsers = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'User search failed' });
   }
-};
-
-export const getContacts = async (req, res) => {
-  res.json(req.user.contacts);
 };
