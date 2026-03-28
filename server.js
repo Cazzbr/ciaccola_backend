@@ -1,4 +1,7 @@
 import express from 'express';
+import swaggerUi from 'swagger-ui-express';
+import swaggerDocument from './swagger.json' with { type: 'json' };
+
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -17,6 +20,13 @@ import messageRoutes from './src/routes/messages.js';
 connectDB();
 
 const app = express();
+const uiOptions = {
+  swaggerOptions: {
+    persistAuthorization: true,  // Keeps token across refreshes
+    docExpansion: 'none',        // Optional: Collapse sections
+  }
+};
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, uiOptions));
 const server = createServer(app);
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] }

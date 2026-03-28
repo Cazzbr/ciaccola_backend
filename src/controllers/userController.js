@@ -62,6 +62,25 @@ export const updateProfile = async (req, res) => {
   }
 };
 
+export const deleteProfile = async (req, res) => {
+  try {
+    const username = req.user.username;
+
+    const user = await User.findByIdAndDelete(req.user._id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    await User.updateMany(
+      { 'contacts.contact_username': username },
+      { $set: { 'contacts.$[elem].status': 'deleted' } },
+      { arrayFilters: [{ 'elem.contact_username': username }] }
+    );
+
+    res.json({ success: true, message: 'Profile deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Profile delete failed' });
+  }
+};
+
 export const addContact = async (req, res) => {
   try {
     const { contact_username } = req.body;
