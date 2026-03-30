@@ -16,7 +16,12 @@ const doc = {
   servers: [{ 
     url: 'http://localhost:3000',
     description: 'Development server'
-  }],
+    },
+      {
+    url: 'https://ciaccola-backend.onrender.com',
+    description: 'on Render server'
+    }
+],
   components: {
     securitySchemes: {
       bearerAuth: {
