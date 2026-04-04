@@ -31,7 +31,7 @@ export const updateProfile = async (req, res) => {
     }
 
     const validRoles = ['standard', 'premium'];
-    if (!validRoles.includes(role)) {
+    if (role !== undefined && !validRoles.includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
 
