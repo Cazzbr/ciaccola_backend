@@ -2,7 +2,7 @@ import User from '../models/User.js';
 
 export const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findById(req.user._id).select('-password').populate('contacts.contact_id', 'username last_seen');
     res.json({
       ...user._doc,
       emailRecovery: user.hasEmailRecovery()
