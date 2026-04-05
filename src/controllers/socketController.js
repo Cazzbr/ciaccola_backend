@@ -47,6 +47,10 @@ const socketController = (io) => {
     socket.on('typing', ({ room }) => socket.to(room).emit('typing', socket.username));
     socket.on('stop-typing', ({ room }) => socket.to(room).emit('stop-typing'));
 
+    socket.on('user-offline', (data) => {
+      socket.to(data.room).emit('user-offline', { from: data.from });
+    });
+
     socket.on('disconnect', () => {
       console.log(`❌ ${socket.username} disconnected`);
     });
