@@ -77,9 +77,9 @@ export const deleteProfile = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     await User.updateMany(
-      { 'contacts.contact_username': username },
+      { 'contacts.contact_id': req.user._id },
       { $set: { 'contacts.$[elem].status': 'deleted' } },
-      { arrayFilters: [{ 'elem.contact_username': username }] }
+      { arrayFilters: [{ 'elem.contact_id': req.user._id }] }
     );
 
     res.json({ success: true, message: 'Profile deleted successfully' });
@@ -95,14 +95,14 @@ export const addContact = async (req, res) => {
     if (!contact) return res.status(404).json({ error: 'User not found' });
 
     const existingContact = req.user.contacts.find(
-      c => c.contact_username === contact_username
+      c => c.contact_id.toString() === contact._id.toString()
     );
     if (existingContact) {
       return res.status(400).json({ error: 'Contact already added' });
     }
 
     req.user.contacts.push({
-      contact_username,
+      contact_id: contact._id,
       status: 'pending'
     });
     await req.user.save();
@@ -131,7 +131,7 @@ export const acceptContactInvite = async (req, res) => {
     }
 
     const existingSenderContact = sender.contacts.find(
-      c => c.contact_username === user.username && c.status === 'pending'
+      c => c.contact_id.toString() === user._id.toString() && c.status === 'pending'
     );
     if (!existingSenderContact) {
       return res.status(400).json({ error: 'No pending invite found for sender' });
@@ -139,7 +139,7 @@ export const acceptContactInvite = async (req, res) => {
 
     existingSenderContact.status = 'accepted';
     user.contacts.push({
-      contact_username,
+      contact_id: sender._id,
       status: 'accepted'
     });
 
