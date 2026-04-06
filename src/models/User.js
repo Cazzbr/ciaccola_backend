@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema({
   last_seen: { type: Date, default: Date.now },
   contacts: [{
     contact_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    status: { type: String, enum: ['pending', 'accepted', 'blocked', 'deleted'], default: 'pending' }
+    status: { type: String, enum: ['pending', 'invited', 'accepted', 'blocked', 'deleted'], default: 'pending' }
   }]
 }, { timestamps: true });
 

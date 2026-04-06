@@ -101,11 +101,22 @@ export const addContact = async (req, res) => {
       return res.status(400).json({ error: 'Contact already added' });
     }
 
-    req.user.contacts.push({
-      contact_id: contact._id,
-      status: 'pending'
+    const alreadyInvited = contact.contacts.find(
+      c => c.contact_id.toString() === req.user._id.toString()
+    );
+    if (alreadyInvited) {
+      return res.status(400).json({ error: 'Invite already sent' });
+    }
+
+    req.user.contacts.push({ contact_id: contact._id, status: 'pending' });
+    contact.contacts.push({ contact_id: req.user._id, status: 'invited' });
+
+    await Promise.all([req.user.save(), contact.save()]);
+
+    const io = req.app.get('io');
+    io.to(contact._id.toString()).emit('contact-invite', {
+      from: req.user.username
     });
-    await req.user.save();
 
     res.json({ success: true });
   } catch (err) {
@@ -130,21 +141,31 @@ export const acceptContactInvite = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const existingSenderContact = sender.contacts.find(
+    // Find the 'invited' entry on the accepting user's side
+    const invitedEntry = user.contacts.find(
+      c => c.contact_id.toString() === sender._id.toString() && c.status === 'invited'
+    );
+    if (!invitedEntry) {
+      return res.status(400).json({ error: 'No pending invite found from this user' });
+    }
+
+    // Find the 'pending' entry on the sender's side
+    const pendingEntry = sender.contacts.find(
       c => c.contact_id.toString() === user._id.toString() && c.status === 'pending'
     );
-    if (!existingSenderContact) {
+    if (!pendingEntry) {
       return res.status(400).json({ error: 'No pending invite found for sender' });
     }
 
-    existingSenderContact.status = 'accepted';
-    user.contacts.push({
-      contact_id: sender._id,
-      status: 'accepted'
-    });
+    invitedEntry.status = 'accepted';
+    pendingEntry.status = 'accepted';
 
-    await sender.save();
-    await user.save();
+    await Promise.all([sender.save(), user.save()]);
+
+    const io = req.app.get('io');
+    io.to(sender._id.toString()).emit('contact-accepted', {
+      by: req.user.username
+    });
 
     res.json({ success: true });
   } catch (err) {

@@ -35,8 +35,10 @@ export const createMessage = async (req, res) => {
     if (!recipient) return res.status(404).json({ error: 'User not found' });
 
     // Check contact status
-    const contact = req.user.contacts.find(c => c.contact_username === recipient_username);
-    if (!contact || contact.status !== 'accepted') {
+    const contact = req.user.contacts.find(
+      c => c.contact_id.toString() === recipient._id.toString() && c.status === 'accepted'
+    );
+    if (!contact) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 

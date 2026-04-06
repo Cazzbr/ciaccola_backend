@@ -20,6 +20,9 @@ const socketController = (io) => {
   io.on('connection', (socket) => {
     console.log(`✅ ${socket.username} connected (${socket.id})`);
 
+    // Personal room for server→client push (contact invites, etc.)
+    socket.join(socket.userId);
+
     // Join chat room
     socket.on('join-room', async ({ room }) => {
       socket.join(room);
@@ -34,11 +37,11 @@ const socketController = (io) => {
     socket.on('answer', (data) => socket.to(data.room).emit('answer', data));
     socket.on('ice-candidate', (data) => socket.to(data.room).emit('ice-candidate', data));
 
-    // Admin audio only
+    // Premium audio only
     socket.on('audio-offer', async (data) => {
       const user = await User.findById(socket.userId).select('role');
-      if (user.role !== 'admin') {
-        return socket.emit('error', { message: 'Admin audio only' });
+      if (user.role !== 'premium') {
+        return socket.emit('error', { message: 'Audio calls require a premium account' });
       }
       socket.to(data.room).emit('audio-offer', data);
     });
