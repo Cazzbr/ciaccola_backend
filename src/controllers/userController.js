@@ -1,8 +1,33 @@
 import User from '../models/User.js';
 
+export const updatePhoto = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No photo provided' });
+    }
+
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(req.file.mimetype)) {
+      return res.status(400).json({ error: 'Only JPEG, PNG and WebP are allowed' });
+    }
+
+    const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { photo: base64 },
+      { new: true }
+    ).select('photo');
+
+    res.json({ photo: user.photo });
+  } catch (err) {
+    res.status(500).json({ error: 'Photo update failed' });
+  }
+};
+
 export const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password').populate('contacts.contact_id', 'username last_seen');
+    const user = await User.findById(req.user._id).select('-password').populate('contacts.contact_id', 'username photo last_seen');
     res.json({
       ...user._doc,
       emailRecovery: user.hasEmailRecovery()

@@ -17,6 +17,7 @@ const userSchema = new mongoose.Schema({
     match: [/^\S+@\S+\.\S+$/, 'Invalid email']
   },
   password: { type: String, required: true, minlength: 6 },
+  photo: String,
   pubkey: String,
   fcm_token: String,
   role: { type: String, enum: ['standard', 'premium'], default: 'standard' },

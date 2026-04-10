@@ -1,6 +1,9 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { auth } from '../middleware/auth.js';
-import { getProfile, updateProfile, deleteProfile, addContact, acceptContactInvite, toggleContactStatus, searchUsers } from '../controllers/userController.js';
+import { getProfile, updateProfile, deleteProfile, updatePhoto, addContact, acceptContactInvite, toggleContactStatus, searchUsers } from '../controllers/userController.js';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 const router = Router();
 router.use(auth);
@@ -29,6 +32,11 @@ router.put('/profile', updateProfile);
   #swagger.description = 'Delete the current authenticated user profile.'
 */
 router.delete('/profile', deleteProfile)
+/*
+  #swagger.tags = ['Users']
+  #swagger.description = 'Upload or replace the profile photo. Accepts multipart/form-data with a photo field. Max 5MB. Supported formats: JPEG, PNG, WebP.'
+*/
+router.put('/photo', upload.single('photo'), updatePhoto)
 /*
   #swagger.tags = ['Users']
   #swagger.description = 'Send a contact invite to another user.'
